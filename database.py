@@ -24,11 +24,14 @@ def add_user(user_id, full_name, phone_number):
     }
     supabase.table('users').upsert(data).execute()
 
-def add_payment(user_id, course_name):
+def add_payment(user_id, course_name, status="pending"):
+    # Cancel any previous pending_screenshot payments to avoid confusion
+    supabase.table('payments').update({"status": "cancelled"}).eq('user_id', user_id).eq('status', 'pending_screenshot').execute()
+    
     data = {
         "user_id": user_id,
         "course_name": course_name,
-        "status": "pending"
+        "status": status
     }
     res = supabase.table('payments').insert(data).execute()
     return res.data[0]['id'] if res.data else None
@@ -42,6 +45,10 @@ def get_payment(payment_id):
 
 def get_latest_payment(user_id):
     res = supabase.table('payments').select("*").eq('user_id', user_id).order('id', desc=True).limit(1).execute()
+    return res.data[0] if res.data else None
+
+def get_pending_screenshot_payment(user_id):
+    res = supabase.table('payments').select("*").eq('user_id', user_id).eq('status', 'pending_screenshot').order('id', desc=True).limit(1).execute()
     return res.data[0] if res.data else None
 
 def get_statistics():

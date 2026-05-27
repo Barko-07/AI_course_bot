@@ -2,8 +2,6 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 
 from config import BOT_TOKEN, ADMIN_GROUP_ID, CARD_NUMBER, CARD_OWNER
@@ -18,13 +16,6 @@ if not BOT_TOKEN:
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
-
-class Registration(StatesGroup):
-    full_name = State()
-    phone_number = State()
-    choose_course = State()
-    payment = State()
-    payment_screenshot = State()
 
 @dp.message(Command("statistika"))
 async def cmd_statistika(message: types.Message):
@@ -55,10 +46,9 @@ def get_main_menu():
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 @dp.message(CommandStart())
-async def cmd_start(message: types.Message, state: FSMContext):
+async def cmd_start(message: types.Message):
     if message.chat.type != 'private':
         return
-    await state.clear()
     
     keyboard = get_main_menu()
     
@@ -75,13 +65,16 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer("Kerakli bo'limni pastdagi menyudan tanlang 👇", reply_markup=keyboard)
 
 @dp.message(F.text == "📚 Kursga qo‘shilish")
-async def join_course_menu(message: types.Message, state: FSMContext):
+async def join_course_menu(message: types.Message):
     user = database.get_user(message.from_user.id)
-    if user:
-        await ask_course(message, state)
+    if user and user.get('phone_number'):
+        await ask_course(message)
     else:
-        await message.answer("Ro'yxatdan o'tish uchun, iltimos, ism va familiyangizni kiriting:\n*(Masalan: Barkamol Olimov)*", reply_markup=types.ReplyKeyboardRemove(), parse_mode="Markdown")
-        await state.set_state(Registration.full_name)
+        kb = [
+            [KeyboardButton(text="📱 Raqamni yuborish va Davom etish", request_contact=True)]
+        ]
+        keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+        await message.answer("Ro'yxatdan o'tish uchun pastdagi tugma orqali telefon raqamingizni yuboring:", reply_markup=keyboard)
 
 @dp.message(F.text == "🧾 Obuna holati")
 async def subscription_status(message: types.Message):
@@ -97,6 +90,8 @@ async def subscription_status(message: types.Message):
         await message.answer(f"Sizning obunangiz holati: Faol ✅\nSiz **{course_name}** guruhidasiz.", parse_mode="Markdown")
     elif status == 'pending':
         await message.answer(f"Sizning obunangiz holati: Kutilmoqda ⏳\nSizning to'lovingiz admin tomonidan tekshirilmoqda.")
+    elif status == 'pending_screenshot':
+        await message.answer(f"Sizning obunangiz holati: To'lov kutilmoqda ⏳\nIltimos, to'lovni amalga oshirib skrinshot yuboring.")
     elif status == 'rejected':
         await message.answer(f"Sizning obunangiz holati: Rad etilgan ❌\nIltimos, qaytadan to'lov qiling yoki adminga murojaat qiling.")
 
@@ -104,34 +99,19 @@ async def subscription_status(message: types.Message):
 async def help_menu(message: types.Message):
     await message.answer("Yordam uchun adminga murojaat qiling: @SizningAdminUsername")
 
-@dp.message(Registration.full_name)
-async def process_name(message: types.Message, state: FSMContext):
-    await state.update_data(full_name=message.text)
-    
-    kb = [
-        [KeyboardButton(text="📱 Telefon raqamni yuborish", request_contact=True)]
-    ]
-    keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
-    
-    await message.answer("Rahmat! Endi telefon raqamingizni pastdagi tugma orqali yuboring:", reply_markup=keyboard)
-    await state.set_state(Registration.phone_number)
-
-@dp.message(Registration.phone_number, F.contact | F.text)
-async def process_phone(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    full_name = data.get('full_name')
-    
-    if message.contact:
-        phone_number = message.contact.phone_number
-    else:
-        phone_number = message.text
+@dp.message(F.contact)
+async def process_phone(message: types.Message):
+    phone_number = message.contact.phone_number
+    full_name = message.contact.first_name
+    if message.contact.last_name:
+        full_name += f" {message.contact.last_name}"
         
     database.add_user(message.from_user.id, full_name, phone_number)
     
     await message.answer("Ajoyib! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.", reply_markup=types.ReplyKeyboardRemove())
-    await ask_course(message, state)
+    await ask_course(message)
 
-async def ask_course(message: types.Message, state: FSMContext):
+async def ask_course(message: types.Message):
     kb = [
         [InlineKeyboardButton(text="🟢 Beginner Kanal", callback_data="course_beginner")],
         [InlineKeyboardButton(text="🟡 Premium Kanal", callback_data="course_premium")]
@@ -139,10 +119,9 @@ async def ask_course(message: types.Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     
     await message.answer("Iltimos, qaysi kursga qo'shilmoqchi ekanligingizni tanlang:", reply_markup=keyboard)
-    await state.set_state(Registration.choose_course)
 
-@dp.callback_query(Registration.choose_course, F.data.startswith("course_"))
-async def process_course_selection(callback: types.CallbackQuery, state: FSMContext):
+@dp.callback_query(F.data.startswith("course_"))
+async def process_course_selection(callback: types.CallbackQuery):
     course_type = callback.data.split("_")[1]
     
     if course_type == "beginner":
@@ -150,14 +129,14 @@ async def process_course_selection(callback: types.CallbackQuery, state: FSMCont
     else:
         course_name = "Premium Kanal"
         
-    await state.update_data(course_name=course_name)
+    database.add_payment(callback.from_user.id, course_name, status="pending_screenshot")
     
     payment_msg = f"To‘lov uchun ma’lumotlar:\n" \
                   f"💰 To‘lov: 90.000 so'm\n" \
                   f"⏳ Muddat: 1 oy\n" \
-                  f"👤 Holder: Sanjar Kamilov\n" \
-                  f"🏦 Bank: Humo\n" \
-                  f"💳 Karta: `9860 1001 2668 1517`\n\n" \
+                  f"👤 Holder: {CARD_OWNER}\n" \
+                  f"🏦 Bank: Humo/Uzcard\n" \
+                  f"💳 Karta: `{CARD_NUMBER}`\n\n" \
                   f"To‘lovni amalga oshirgach, pastdagi tugmani bosing:"
                   
     kb = [[InlineKeyboardButton(text="💸 To‘lov qildim", callback_data="paid_btn")]]
@@ -165,27 +144,34 @@ async def process_course_selection(callback: types.CallbackQuery, state: FSMCont
                   
     await callback.message.answer(payment_msg, reply_markup=keyboard, parse_mode="Markdown")
     await callback.answer()
-    await state.set_state(Registration.payment)
 
-@dp.callback_query(Registration.payment, F.data == "paid_btn")
-async def ask_for_screenshot(callback: types.CallbackQuery, state: FSMContext):
+@dp.callback_query(F.data == "paid_btn")
+async def ask_for_screenshot(callback: types.CallbackQuery):
     await callback.message.answer("Iltimos, to'lov chekini (skrinshot) yuboring:")
     await callback.answer()
-    await state.set_state(Registration.payment_screenshot)
 
-@dp.message(Registration.payment_screenshot, F.photo)
-async def process_payment_receipt(message: types.Message, state: FSMContext):
+@dp.message(F.photo)
+async def process_payment_receipt(message: types.Message):
     if not ADMIN_GROUP_ID:
         await message.answer("Admin guruhi sozlanmagan, hozircha to'lovni tekshira olmaymiz.")
         return
 
-    data = await state.get_data()
-    course_name = data.get('course_name')
+    payment = database.get_pending_screenshot_payment(message.from_user.id)
+    if not payment:
+        # Check if they have a pending admin approval
+        latest_payment = database.get_latest_payment(message.from_user.id)
+        if latest_payment and latest_payment['status'] == 'pending':
+            await message.answer("Sizning oldingi to'lovingiz hozirda admin tomonidan tekshirilmoqda. Iltimos kuting.")
+        return
+        
+    course_name = payment['course_name']
+    payment_id = payment['id']
+    
     user = database.get_user(message.from_user.id)
     full_name = user['full_name']
     phone_number = user['phone_number']
     
-    payment_id = database.add_payment(message.from_user.id, course_name)
+    database.update_payment_status(payment_id, 'pending')
     
     admin_msg = f"🔔 **Yangi To'lov!**\n\n" \
                 f"👤 Ism: {full_name}\n" \
@@ -210,7 +196,6 @@ async def process_payment_receipt(message: types.Message, state: FSMContext):
             parse_mode="Markdown"
         )
         await message.answer("Sizning chekingiz qabul qilindi va tekshirish uchun adminga yuborildi. Tez orada ruxsat (link) yuboriladi. Kutganingiz uchun rahmat!")
-        await state.clear()
     except Exception as e:
         await message.answer("Adminga xabar yuborishda xatolik yuz berdi. Iltimos keyinroq urinib ko'ring yoki admin bilan bog'laning.")
         logging.error(f"Error sending to admin group: {e}")
@@ -264,4 +249,10 @@ async def reject_payment(callback: types.CallbackQuery):
         logging.error(e)
         await callback.answer("Foydalanuvchiga xabar yuborib bo'lmadi!", show_alert=True)
 
-# Pollingni o'chirib tashlaymiz, Vercel webhook ishlatadi
+async def main():
+    database.init_db() if hasattr(database, 'init_db') else None
+    logging.info("Bot ishga tushdi (Polling mode)...")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
