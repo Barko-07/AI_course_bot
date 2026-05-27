@@ -19,10 +19,14 @@ def get_user(user_id):
 def add_user(user_id, full_name, phone_number):
     data = {
         "user_id": user_id,
-        "full_name": full_name,
-        "phone_number": phone_number
+        "full_name": str(full_name),
+        "phone_number": str(phone_number)
     }
-    supabase.table('users').upsert(data).execute()
+    existing = get_user(user_id)
+    if existing:
+        supabase.table('users').update(data).eq('user_id', user_id).execute()
+    else:
+        supabase.table('users').insert(data).execute()
 
 def add_payment(user_id, course_name, status="pending"):
     # Cancel any previous pending_screenshot payments to avoid confusion

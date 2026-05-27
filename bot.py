@@ -101,15 +101,19 @@ async def help_menu(message: types.Message):
 
 @dp.message(F.contact)
 async def process_phone(message: types.Message):
-    phone_number = message.contact.phone_number
-    full_name = message.contact.first_name
-    if message.contact.last_name:
-        full_name += f" {message.contact.last_name}"
+    try:
+        phone_number = message.contact.phone_number
+        full_name = message.contact.first_name
+        if message.contact.last_name:
+            full_name += f" {message.contact.last_name}"
+            
+        database.add_user(message.from_user.id, full_name, phone_number)
         
-    database.add_user(message.from_user.id, full_name, phone_number)
-    
-    await message.answer("Ajoyib! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.", reply_markup=types.ReplyKeyboardRemove())
-    await ask_course(message)
+        await message.answer("Ajoyib! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.", reply_markup=types.ReplyKeyboardRemove())
+        await ask_course(message)
+    except Exception as e:
+        await message.answer(f"Xatolik yuz berdi (database): {str(e)}")
+        logging.error(f"Error in process_phone: {e}")
 
 async def ask_course(message: types.Message):
     kb = [
