@@ -28,6 +28,12 @@ def add_user(user_id, full_name, phone_number):
     else:
         supabase.table('users').insert(data).execute()
 
+def update_user_name(user_id, full_name):
+    supabase.table('users').update({"full_name": full_name}).eq('user_id', user_id).execute()
+
+def update_user_phone(user_id, phone_number):
+    supabase.table('users').update({"phone_number": phone_number}).eq('user_id', user_id).execute()
+
 def add_payment(user_id, course_name, status="pending"):
     # Cancel any previous pending_screenshot payments to avoid confusion
     supabase.table('payments').update({"status": "cancelled"}).eq('user_id', user_id).eq('status', 'pending_screenshot').execute()

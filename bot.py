@@ -66,15 +66,14 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.text == "📚 Kursga qo‘shilish")
 async def join_course_menu(message: types.Message):
+    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    await asyncio.sleep(0.2)
     user = database.get_user(message.from_user.id)
-    if user and user.get('phone_number'):
+    if user and user.get('phone_number') and user.get('phone_number') != "PENDING":
         await ask_course(message)
     else:
-        kb = [
-            [KeyboardButton(text="📱 Raqamni yuborish va Davom etish", request_contact=True)]
-        ]
-        keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
-        await message.answer("Ro'yxatdan o'tish uchun pastdagi tugma orqali telefon raqamingizni yuboring:", reply_markup=keyboard)
+        database.add_user(message.from_user.id, "PENDING", "PENDING")
+        await message.answer("Ro'yxatdan o'tish uchun, iltimos, ism va familiyangizni kiriting:\n*(Masalan: Barkamol Olimov)*", reply_markup=types.ReplyKeyboardRemove(), parse_mode="Markdown")
 
 @dp.message(F.text == "🧾 Obuna holati")
 async def subscription_status(message: types.Message):
@@ -101,19 +100,34 @@ async def help_menu(message: types.Message):
 
 @dp.message(F.contact)
 async def process_phone(message: types.Message):
+    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    await asyncio.sleep(0.2)
     try:
         phone_number = message.contact.phone_number
-        full_name = message.contact.first_name
-        if message.contact.last_name:
-            full_name += f" {message.contact.last_name}"
-            
-        database.add_user(message.from_user.id, full_name, phone_number)
+        database.update_user_phone(message.from_user.id, phone_number)
         
         await message.answer("Ajoyib! Siz muvaffaqiyatli ro'yxatdan o'tdingiz.", reply_markup=types.ReplyKeyboardRemove())
         await ask_course(message)
     except Exception as e:
         await message.answer(f"Xatolik yuz berdi (database): {str(e)}")
         logging.error(f"Error in process_phone: {e}")
+
+@dp.message(F.text)
+async def process_text_messages(message: types.Message):
+    if message.text in ["🧾 Obuna holati", "📞 Yordam", "📚 Kursga qo‘shilish"]:
+        return
+        
+    user = database.get_user(message.from_user.id)
+    if user and user.get('full_name') == "PENDING":
+        await bot.send_chat_action(chat_id=message.chat.id, action="typing")
+        await asyncio.sleep(0.2)
+        database.update_user_name(message.from_user.id, message.text)
+        
+        kb = [
+            [KeyboardButton(text="📱 Raqamni yuborish va Davom etish", request_contact=True)]
+        ]
+        keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+        await message.answer("Rahmat! Endi telefon raqamingizni pastdagi tugma orqali yuboring:", reply_markup=keyboard)
 
 async def ask_course(message: types.Message):
     kb = [
