@@ -96,7 +96,7 @@ async def subscription_status(message: types.Message):
 
 @dp.message(F.text == "📞 Yordam")
 async def help_menu(message: types.Message):
-    await message.answer("Yordam uchun adminga murojaat qiling: @SizningAdminUsername")
+    await message.answer("Yordam uchun adminga murojaat qiling: @Jas_20_20")
 
 @dp.message(F.contact)
 async def process_phone(message: types.Message):
