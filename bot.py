@@ -131,8 +131,8 @@ async def process_text_messages(message: types.Message):
 
 async def ask_course(message: types.Message):
     kb = [
-        [InlineKeyboardButton(text="🟢 Beginner Kanal", callback_data="course_beginner")],
-        [InlineKeyboardButton(text="🟡 Premium Kanal", callback_data="course_premium")]
+        [InlineKeyboardButton(text="🍇 Uzum", callback_data="course_beginner")],
+        [InlineKeyboardButton(text="🤖 Suniy Intelekt", callback_data="course_premium")]
     ]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
     
@@ -143,9 +143,9 @@ async def process_course_selection(callback: types.CallbackQuery):
     course_type = callback.data.split("_")[1]
     
     if course_type == "beginner":
-        course_name = "Beginner Kanal"
+        course_name = "Uzum"
     else:
-        course_name = "Premium Kanal"
+        course_name = "Suniy Intelekt"
         
     database.add_payment(callback.from_user.id, course_name, status="pending_screenshot")
     
@@ -226,10 +226,10 @@ async def approve_payment(callback: types.CallbackQuery):
     payment = database.get_payment(payment_id)
     course_name = payment['course_name']
     
-    if "Beginner" in course_name:
-        invite_link = "https://t.me/+B_EGINNER_LINK"
+    if "Uzum" in course_name:
+        invite_link = "https://t.me/+UZUM_LINK"
     else:
-        invite_link = "https://t.me/+P_REMIUM_LINK"
+        invite_link = "https://t.me/+SUNIY_INTELEKT_LINK"
     
     try:
         await bot.send_message(
