@@ -144,20 +144,22 @@ async def process_course_selection(callback: types.CallbackQuery):
     
     if course_type == "beginner":
         course_name = "Uzum"
+        price = "1.500.000"
     else:
         course_name = "Suniy Intelekt"
+        price = "990.000"
         
     database.add_payment(callback.from_user.id, course_name, status="pending_screenshot")
     
-    payment_msg = f"To‘lov uchun ma’lumotlar:\n" \
-                  f"💰 To‘lov: 90.000 so'm\n" \
-                  f"⏳ Muddat: 1 oy\n" \
+    payment_msg = f"To'lov uchun ma'lumotlar:\n" \
+                  f"📚 Kurs: {course_name}\n" \
+                  f"💰 To'lov: {price} so'm\n" \
                   f"👤 Holder: {CARD_OWNER}\n" \
                   f"🏦 Bank: Humo/Uzcard\n" \
                   f"💳 Karta: `{CARD_NUMBER}`\n\n" \
-                  f"To‘lovni amalga oshirgach, pastdagi tugmani bosing:"
+                  f"To'lovni amalga oshirgach, pastdagi tugmani bosing:"
                   
-    kb = [[InlineKeyboardButton(text="💸 To‘lov qildim", callback_data="paid_btn")]]
+    kb = [[InlineKeyboardButton(text="💸 To'lov qildim", callback_data="paid_btn")]]
     keyboard = InlineKeyboardMarkup(inline_keyboard=kb)
                   
     await callback.message.answer(payment_msg, reply_markup=keyboard, parse_mode="Markdown")
