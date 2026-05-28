@@ -1,10 +1,11 @@
 import asyncio
 import logging
+from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 
-from config import BOT_TOKEN, ADMIN_GROUP_ID, CARD_NUMBER, CARD_OWNER
+from config import BOT_TOKEN, ADMIN_GROUP_ID, CARD_NUMBER, CARD_OWNER, UZUM_CHANNEL_ID, SUNIY_INTELEKT_CHANNEL_ID
 import database
 
 # Loggerni sozlash
@@ -228,17 +229,29 @@ async def approve_payment(callback: types.CallbackQuery):
     payment = database.get_payment(payment_id)
     course_name = payment['course_name']
     
+    # Kanal ID ni aniqlash
     if "Uzum" in course_name:
-        invite_link = "https://t.me/+f8kMzxRh3xw3MmIy"
+        channel_id = UZUM_CHANNEL_ID
     else:
-        invite_link = "https://t.me/+SUNIY_INTELEKT_LINK"
+        channel_id = SUNIY_INTELEKT_CHANNEL_ID
     
     try:
+        # Har bir foydalanuvchi uchun 1 martali unique link yaratish
+        expire_time = datetime.now() + timedelta(hours=24)
+        invite = await bot.create_chat_invite_link(
+            chat_id=channel_id,
+            name=f"User {user_id}",
+            member_limit=1,
+            expire_date=expire_time
+        )
+        invite_link = invite.invite_link
+        
         await bot.send_message(
             chat_id=user_id,
             text=f"Tabriklaymiz! 🎉 To'lovingiz tasdiqlandi.\n\n"
-                 f"Siz **{course_name}**ga qo'shilishingiz mumkin.\n"
-                 f"Kanalga kirish uchun havola:\n{invite_link}",
+                 f"Siz **{course_name}** kursiga qo'shilishingiz mumkin.\n\n"
+                 f"🔗 Kanalga kirish havolasi:\n{invite_link}\n\n"
+                 f"⚠️ *Ushbu havola faqat siz uchun va 1 marta ishlaydi!*",
             parse_mode="Markdown"
         )
         await callback.message.edit_caption(
@@ -247,7 +260,7 @@ async def approve_payment(callback: types.CallbackQuery):
         )
     except Exception as e:
         logging.error(e)
-        await callback.answer("Foydalanuvchiga xabar yuborib bo'lmadi!", show_alert=True)
+        await callback.answer(f"Xatolik: {str(e)}", show_alert=True)
 
 @dp.callback_query(F.data.startswith("reject_"))
 async def reject_payment(callback: types.CallbackQuery):
