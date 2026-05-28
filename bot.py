@@ -229,7 +229,7 @@ async def approve_payment(callback: types.CallbackQuery):
     course_name = payment['course_name']
     
     if "Uzum" in course_name:
-        invite_link = "https://t.me/+UZUM_LINK"
+        invite_link = "https://t.me/+f8kMzxRh3xw3MmIy"
     else:
         invite_link = "https://t.me/+SUNIY_INTELEKT_LINK"
     
