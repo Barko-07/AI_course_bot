@@ -154,9 +154,9 @@ async def process_course_selection(callback: types.CallbackQuery):
     payment_msg = f"To'lov uchun ma'lumotlar:\n" \
                   f"📚 Kurs: {course_name}\n" \
                   f"💰 To'lov: {price} so'm\n" \
-                  f"👤 Holder: {CARD_OWNER}\n" \
+                  f"👤 Holder: Xolmatov Jasur\n" \
                   f"🏦 Bank: Humo/Uzcard\n" \
-                  f"💳 Karta: `{CARD_NUMBER}`\n\n" \
+                  f"💳 Karta: `5614 6822 1620 9116`\n\n" \
                   f"To'lovni amalga oshirgach, pastdagi tugmani bosing:"
                   
     kb = [[InlineKeyboardButton(text="💸 To'lov qildim", callback_data="paid_btn")]]
