@@ -3,7 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import CommandStart, Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
 from config import BOT_TOKEN, ADMIN_GROUP_ID, CARD_NUMBER, CARD_OWNER, UZUM_CHANNEL_ID, SUNIY_INTELEKT_CHANNEL_ID
 import database
@@ -50,25 +50,14 @@ def get_main_menu():
 async def cmd_start(message: types.Message):
     if message.chat.type != 'private':
         return
-    
     keyboard = get_main_menu()
-    
-    try:
-        photo = FSInputFile("banner.png")
-        await message.answer_photo(
-            photo=photo,
-            caption="Assalomu alaykum! 🎓 Kursga obuna bo‘ling va yopiq guruhga qo‘shiling."
-        )
-    except Exception as e:
-        logging.error(f"Error loading banner: {e}")
-        await message.answer("Assalomu alaykum! 🎓 Kursga obuna bo‘ling va yopiq guruhga qo‘shiling.")
-        
-    await message.answer("Kerakli bo'limni pastdagi menyudan tanlang 👇", reply_markup=keyboard)
+    await message.answer(
+        "Assalomu alaykum! 🎓\n\nKursga obuna bo'ling va yopiq guruhga qo'shiling.\n\nKerakli bo'limni pastdagi menyudan tanlang 👇",
+        reply_markup=keyboard
+    )
 
 @dp.message(F.text == "📚 Kursga qo‘shilish")
 async def join_course_menu(message: types.Message):
-    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
-    await asyncio.sleep(0.2)
     user = database.get_user(message.from_user.id)
     if user and user.get('phone_number') and user.get('phone_number') != "PENDING":
         await ask_course(message)
@@ -101,8 +90,6 @@ async def help_menu(message: types.Message):
 
 @dp.message(F.contact)
 async def process_phone(message: types.Message):
-    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
-    await asyncio.sleep(0.2)
     try:
         phone_number = message.contact.phone_number
         database.update_user_phone(message.from_user.id, phone_number)
@@ -120,8 +107,6 @@ async def process_text_messages(message: types.Message):
         
     user = database.get_user(message.from_user.id)
     if user and user.get('full_name') == "PENDING":
-        await bot.send_chat_action(chat_id=message.chat.id, action="typing")
-        await asyncio.sleep(0.2)
         database.update_user_name(message.from_user.id, message.text)
         
         kb = [
