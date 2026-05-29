@@ -229,29 +229,28 @@ async def approve_payment(callback: types.CallbackQuery):
     payment = database.get_payment(payment_id)
     course_name = payment['course_name']
     
-    # Kanal ID ni aniqlash
-    if "Uzum" in course_name:
-        channel_id = UZUM_CHANNEL_ID
-    else:
-        channel_id = SUNIY_INTELEKT_CHANNEL_ID
-    
     try:
-        # Har bir foydalanuvchi uchun 1 martali unique link yaratish
-        expire_time = datetime.now() + timedelta(hours=24)
-        invite = await bot.create_chat_invite_link(
-            chat_id=channel_id,
-            name=f"User {user_id}",
-            member_limit=1,
-            expire_date=expire_time
-        )
-        invite_link = invite.invite_link
+        if "Uzum" in course_name:
+            # Uzum uchun dynamic unique link
+            expire_time = datetime.now() + timedelta(hours=24)
+            invite = await bot.create_chat_invite_link(
+                chat_id=UZUM_CHANNEL_ID,
+                name=f"User {user_id}",
+                member_limit=1,
+                expire_date=expire_time
+            )
+            invite_link = invite.invite_link
+            warning_text = "\n\n⚠️ *Ushbu havola faqat siz uchun va 1 marta ishlaydi!*"
+        else:
+            # Suniy Intelekt uchun statik link
+            invite_link = "https://t.me/+Q8XZSOaAQOxkZjli"
+            warning_text = ""
         
         await bot.send_message(
             chat_id=user_id,
             text=f"Tabriklaymiz! 🎉 To'lovingiz tasdiqlandi.\n\n"
                  f"Siz **{course_name}** kursiga qo'shilishingiz mumkin.\n\n"
-                 f"🔗 Kanalga kirish havolasi:\n{invite_link}\n\n"
-                 f"⚠️ *Ushbu havola faqat siz uchun va 1 marta ishlaydi!*",
+                 f"🔗 Kanalga kirish havolasi:\n{invite_link}{warning_text}",
             parse_mode="Markdown"
         )
         await callback.message.edit_caption(
